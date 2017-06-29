@@ -2,7 +2,7 @@
 """This takes the folder that data was processed by ORCHID reader, dumps the
 csv files into the appropriate databases and determines reactor cycle (so that
 the appropriate calibration lines can be chosen and used)"""
-import sqlite3
+import sqlite3 as sql
 import sys
 
 
