@@ -77,5 +77,16 @@ def add_batch_data(batch_data, db_loc):
             out_list.append(1 if batch_data[key] else 0)
         else:
             out_list.append(batch_data[key])
-    cursor.execute(BATCH_INSERT, out_list)
+    test_cmd = "SELECT * FROM batch_table WHERE batch_name='{0:s}';".format(batch_data["BatchName"])
+    cursor.execute(test_cmd)
+    temp = cursor.fetchone()
+    if temp is None:
+        cursor.execute(BATCH_INSERT, out_list)
+        dbcon.commit()
+        return True
+    else:
+        print "Error, batch already in batch database"
+        for key, val in zip(DICT_NAMES, temp):
+            print "%20s:"%key, val
+        return False
 
