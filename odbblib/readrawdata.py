@@ -48,7 +48,7 @@ def read_batch_data(fname):
                                                     "%Y-%b-%d %H:%M:%S.%f")
     run_data["RunCount"] = int(data[14])
     test_year = "{0:d}".format(run_data["StartDateTime"].year)
-    if run_data["BatchName"][-4:] != test_year:
+    if not test_year in run_data["BatchName"][-4:]:
         run_data["BatchName"] += "_{0:s}".format(test_year)
     return run_data
 
