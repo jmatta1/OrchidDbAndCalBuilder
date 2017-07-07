@@ -20,12 +20,12 @@ def main():
     if len(sys.argv) == 3:
         batch_db_path = sys.argv[2]
     batch_location = sys.argv[1]
-    print "Setting batch datebase path to:", batch_db_path
+    print "Setting batch database path to:", batch_db_path
     print "Setting batch location to:", batch_location
     batch_data = rrd.read_batch_data(batch_location)
-    for key in batch_data:
-        print "%20s:"%key, batch_data[key]
-    dbops.add_batch_data(batch_data, batch_db_path)
+    if not dbops.add_batch_data(batch_data, batch_db_path):
+        print "Failed to add batch information to database"
+        return
     #run_data = rrd.read_run_data(batch_location)
 
 
