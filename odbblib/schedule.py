@@ -14,6 +14,9 @@ HFIR_SHUTDOWN_DAYS = [dt.date(2016, 9, 27), dt.date(2016, 12, 8),
 
 HFIR_CYCLE_NUM = [468, 469, 470, 471, 472, 473, 474]
 
+CYCLE_STATUS_NAMES = ["Reactor Off", "Reactor Startup", "Reactor On",
+                      "Reactor Shutdown"]
+
 # variables automatically generated from the variables above
 
 #the mixed reactor starts and stops
@@ -43,8 +46,6 @@ def find_range(batch_start, batch_stop):
     """
     start_test_list = [(batch_start.date() < x) for x in HFIR_MIXED_DAYS]
     stop_test_list = [(batch_stop.date() < x) for x in HFIR_MIXED_DAYS]
-    print start_test_list
-    print stop_test_list
     start_ind = -2
     for i, val in enumerate(start_test_list):
         if val:
@@ -132,19 +133,62 @@ def get_reactor_status(batch_start, batch_stop):
             return 3
 
 
+def get_reactor_status_name(batch_start, batch_stop):
+    """This function takes the batch start and stop and determines the reactor
+    status across that period, returning a name for that status
+
+    Parameters
+    ----------
+    batch_start : datetime.datetime
+        datetime of the start of the batch
+    batch_stop : datetime.datetime
+        datetime of the end of the batch
+
+    Returns
+    -------
+    RxStatus : str
+        a string representing the reactor status
+    """
+    return CYCLE_STATUS_NAMES[get_reactor_status(batch_start, batch_stop)]
+
+
+def get_reactor_cycles(batch_start, batch_stop):
+    """This function takes the batch start and stop and determines the reactor
+    cycle number at the start and end of the batch
+
+    Parameters
+    ----------
+    batch_start : datetime.datetime
+        datetime of the start of the batch
+    batch_stop : datetime.datetime
+        datetime of the end of the batch
+
+    Returns
+    -------
+    start_cycle : int
+        the cycle number at the start of the batch
+    stop_cycle : int
+        the cycle number at the end of the batch
+    """
+    (start_ind, stop_ind) = find_range(batch_start, batch_stop)
+    return (HFIR_CYCLE_NUM[start_ind/2], HFIR_CYCLE_NUM[stop_ind/2])
+
+
 if __name__ == "__main__":
     temp1 = dt.datetime(2016, 9, 6, 9, 33)
     temp2 = dt.datetime(2016, 9, 10, 7, 13)
     print temp1
     print temp2
-    print HFIR_MIXED_DAYS
     print find_range(temp1, temp2)
     print get_reactor_status(temp1, temp2)
+    print get_reactor_cycles(temp1, temp2)
+    print get_reactor_status_name(temp1, temp2)
     temp3 = dt.datetime(2017, 6, 1, 10, 15)
     temp4 = dt.datetime(2017, 6, 15, 8, 19)
     print temp3
     print temp4
-    print HFIR_MIXED_DAYS
     print find_range(temp3, temp4)
     print get_reactor_status(temp3, temp4)
+    print get_reactor_cycles(temp3, temp4)
+    print get_reactor_status_name(temp3, temp4)
 
