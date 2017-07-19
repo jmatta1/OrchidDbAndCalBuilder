@@ -4,7 +4,8 @@ import os
 import datetime as dt
 import odbblib.schedule as sch
 
-PATH_STR = "/data1/prospect/ProcessedData/OrchidAnalysis/TimeSeries_2017"
+PATH_STR1 = "/data1/prospect/ProcessedData/OrchidAnalysis/TimeSeries_2017"
+PATH_STR2 = "/home/itm/test_reader/short_runs"
 
 def read_batch_data(fname):
     """Reads the batch information csv
@@ -32,27 +33,33 @@ def read_batch_data(fname):
     batch_data["IntTime"] = float(data[3])
     # start of temporary code for testing on my machine
     # TODO: REMOVE THIS CODE!
-    if PATH_STR in data[4]:
-        data[4] = "/home/jmatta1/test_data" + data[4][len(PATH_STR):]
-    if PATH_STR in data[5]:
-        data[5] = "/home/jmatta1/test_data" + data[5][len(PATH_STR):]
-    if PATH_STR in data[6]:
-        data[6] = "/home/jmatta1/test_data" + data[6][len(PATH_STR):]
+    if PATH_STR1 in data[4]:
+        data[4] = "/home/jmatta1/test_data" + data[4][len(PATH_STR1):]
+    if PATH_STR1 in data[5]:
+        data[5] = "/home/jmatta1/test_data" + data[5][len(PATH_STR1):]
+    if PATH_STR1 in data[6]:
+        data[6] = "/home/jmatta1/test_data" + data[6][len(PATH_STR1):]
+    if PATH_STR2 in data[4]:
+        data[4] = "/home/jmatta1/test_data/short_runs" + data[4][len(PATH_STR2):]
+    if PATH_STR2 in data[5]:
+        data[5] = "/home/jmatta1/test_data/short_runs" + data[5][len(PATH_STR2):]
+    if PATH_STR2 in data[6]:
+        data[6] = "/home/jmatta1/test_data/short_runs" + data[6][len(PATH_STR2):]
     # end of temporary code for testing on my machine
     batch_data["RootFileLocation"] = data[4]
     batch_data["RunDataLocation"] = data[5]
     batch_data["DetDataLocation"] = data[6]
-    batch_data["FirstBufferSkipped"] = False if data[7]=="No" else True
-    batch_data["TreeGenerated"] = False if data[8]=="No" else True
+    batch_data["FirstBufferSkipped"] = False if data[7] == "No" else True
+    batch_data["TreeGenerated"] = False if data[8] == "No" else True
     batch_data["TreeFileLocation"] = ""
     if batch_data["TreeGenerated"]:
         batch_data["TreeFileLocation"] = data[9]
     batch_data["StartEpochMicroSec"] = int(data[10])
     batch_data["StartDateTime"] = dt.datetime.strptime(data[11],
-                                                     "%Y-%b-%d %H:%M:%S.%f")
+                                                       "%Y-%b-%d %H:%M:%S.%f")
     batch_data["StopEpochMicroSec"] = int(data[12])
     batch_data["StopDateTime"] = dt.datetime.strptime(data[13],
-                                                    "%Y-%b-%d %H:%M:%S.%f")
+                                                      "%Y-%b-%d %H:%M:%S.%f")
     batch_data["RunCount"] = int(data[14])
     # ensure that the batch name contains the year in it
     test_year = "{0:d}".format(batch_data["StartDateTime"].year)
@@ -70,9 +77,9 @@ def read_batch_data(fname):
     # add the keys to the dictionary containing the info that is added later
     batch_data["IsCalibrated"] = False
     batch_data["IsDecomposed"] = False
-    batch_data["ProcRootLoc"] = ""
+    batch_data["CalRootLoc"] = ""
+    batch_data["DecompRootLoc"] = ""
     batch_data["RunDbLoc"] = ""
-    batch_data["DetDbLoc"] = ""
     return batch_data
 
 
