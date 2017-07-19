@@ -1,6 +1,5 @@
 """Functions to create, update, and add to the various databases"""
 import sqlite3 as sql
-import os
 import sys
 import datetime as dt
 import odbblib.input_sanitizer as ins
@@ -28,9 +27,9 @@ BATCH_TABLE_CMD = """CREATE TABLE batch_table (
     reactor_status_desc int NOT NULL,
     has_been_calibrated int DEFAULT 0,
     has_been_decomposed int DEFAULT 0,
-    proc_root_location text DEFAULT '',
-    run_db_location text DEFAULT '',
-    det_db_location text DEFAULT ''
+    cal_root_location text DEFAULT '',
+    decomp_root_location text DEFAULT '',
+    run_db_location text DEFAULT ''
 );
 """
 
@@ -56,9 +55,9 @@ SET start_us_epoch = ?,
     reactor_status_desc = ?,
     has_been_calibrated = ?,
     has_been_decomposed = ?,
-    proc_root_location = ?,
-    run_db_location = ?,
-    det_db_location = ?
+    cal_root_location = ?,
+    decomp_root_location = ?,
+    run_db_location text = ?
 WHERE
     batch_name = ?
 ;
@@ -70,12 +69,12 @@ BATCH_INSERT = "INSERT INTO batch_table VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "\
 BATCH_SELECT = "SELECT * FROM batch_table WHERE batch_name='{0:s}';"
 
 BATCH_DICT_NAMES = ["BatchName", "StartEpochMicroSec", "StopEpochMicroSec",
-                    "StartDateTime", "StopDateTime", "ArrayX", "ArrayY",             
-                    "RootFileLocation", "RunDataLocation", "DetDataLocation",    
-                    "TreeGenerated", "TreeFileLocation", "IntTime", "RunCount",           
+                    "StartDateTime", "StopDateTime", "ArrayX", "ArrayY",
+                    "RootFileLocation", "RunDataLocation", "DetDataLocation",
+                    "TreeGenerated", "TreeFileLocation", "IntTime", "RunCount",
                     "DetCount", "FirstBufferSkipped", "StartCycleNum",
-                    "StopCycleNum", "StatusNum", "StatusName", "IsCalibrated", 
-                    "IsDecomposed", "ProcRootLoc", "RunDbLoc", "DetDbLoc"]
+                    "StopCycleNum", "StatusNum", "StatusName", "IsCalibrated",
+                    "IsDecomposed", "CalRootLoc", "DecompRootLoc", "RunDbLoc"]
 
 
 MAKE_DET_DATA_TABLE = """CREATE TABLE det_data_table (
@@ -95,7 +94,7 @@ MAKE_DET_DATA_TABLE = """CREATE TABLE det_data_table (
 """
 
 DET_INSERT = "INSERT INTO det_data_table VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?,"\
-             " ?, ?, ?)"
+    " ?, ?, ?)"
 
 DET_DATA_NAMES = ["DetNum", "DigitizerModule", "DigitizerChannel", "MpodModule",
                   "MpodChannel", "DetType", "DetOffsetX", "DetPosX",
@@ -172,6 +171,8 @@ def make_batch_database(run_db_path, det_data, run_data, det_run_data):
     # now optimize the database
     cursor.execute("VACUUM")
     dbcon.commit()
+    dbcon.close()
+    print "Added run information to local batch database"
 
 
 def make_det_run_tables(dbcon, cursor, det_run_data):
@@ -193,9 +194,9 @@ def make_det_run_tables(dbcon, cursor, det_run_data):
         make_tbl_cmd = MAKE_DET_RUN_TABLE.format(table_name)
         try:
             cursor.execute(make_tbl_cmd)
-        except sql.OperationalError as err:
+        except sql.OperationalError:
             # if there was an error creating the table then it already exists
-            print "{0:s} already exists for this batch".format(table_name)
+            print "\n{0:s} already exists for this batch".format(table_name)
             print "    1 - Abort execution"
             print "    2 - Recreate {0:s}".format(table_name)
             print "    3 - Skip Writing {0:s}".format(table_name)
@@ -235,9 +236,9 @@ def make_run_table(dbcon, cursor, run_data):
     # check if the table exists (in case the db is newly created)
     try:
         cursor.execute(MAKE_RUN_TABLE)
-    except sql.OperationalError as err:
+    except sql.OperationalError:
         # if there was an error creating the table then it already exists
-        print "Run info table already exists for this batch"
+        print "\nRun info table already exists for this batch"
         print "    1 - Abort execution"
         print "    2 - Recreate run_data_table"
         print "    3 - Skip Writing run_data_table"
@@ -276,9 +277,9 @@ def make_det_table(dbcon, cursor, det_data):
     # check if the table exists (in case the db is newly created)
     try:
         cursor.execute(MAKE_DET_DATA_TABLE)
-    except sql.OperationalError as err:
+    except sql.OperationalError:
         # if there was an error creating the table then it already exists
-        print "Det info table already exists for this batch"
+        print "\nDet info table already exists for this batch"
         print "    1 - Abort execution"
         print "    2 - Recreate det_data_table"
         print "    3 - Skip Writing det_data_table"
@@ -318,7 +319,7 @@ def overwrite_batch_data(batch_data, db_loc):
     # check if the table exists (in case the db is newly created)
     try:
         cursor.execute(BATCH_TABLE_CMD)
-    except sql.OperationalError as err:
+    except sql.OperationalError:
         # if there was an error creating the table then it already exists
         pass
     out_list = generate_insert_list(batch_data, BATCH_DICT_NAMES)
@@ -355,7 +356,7 @@ def add_batch_data(batch_data, db_loc):
     # check if the table exists (in case the db is newly created)
     try:
         cursor.execute(BATCH_TABLE_CMD)
-    except sql.OperationalError as err:
+    except sql.OperationalError:
         # if there was an error creating the table then it already exists
         pass
     out_list = generate_insert_list(batch_data, BATCH_DICT_NAMES)
@@ -386,9 +387,9 @@ def generate_insert_list(data, name_list):
     for key in name_list:
         if "DateTime" in key:
             out_list.append(data[key].__str__())
-        elif type(data[key]) is dt.datetime:
+        elif isinstance(data[key], dt.datetime):
             out_list.append(data[key].__str__())
-        elif type(data[key]) is bool:
+        elif isinstance(data[key], bool):
             out_list.append(1 if data[key] else 0)
         else:
             out_list.append(data[key])
