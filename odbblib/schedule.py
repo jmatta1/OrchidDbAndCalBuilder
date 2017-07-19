@@ -2,15 +2,23 @@
 where within that schedule we are"""
 import datetime as dt
 
-HFIR_STARTUP_DAYS = [dt.date(2016, 9, 5), dt.date(2016, 11, 15),
-                     dt.date(2017, 1, 3), dt.date(2017, 2, 14),
-                     dt.date(2017, 5, 3), dt.date(2017, 6, 13),
-                     dt.date(2017, 7, 25), dt.date(2017, 9, 5)]
+HFIR_STARTUP_DAYS = [dt.datetime(2016, 9, 6, 9, 57),
+                     dt.datetime(2016, 11, 15, 9, 42),
+                     dt.datetime(2017, 1, 3, 14, 21),
+                     dt.datetime(2017, 2, 14, 8, 30),
+                     dt.datetime(2017, 5, 3, 12, 50),
+                     dt.datetime(2017, 6, 13, 7, 58),
+                     dt.datetime(2017, 7, 25, 0, 0),  # in the future
+                     dt.datetime(2017, 9, 5, 0, 0)]  # in the future
 
-HFIR_SHUTDOWN_DAYS = [dt.date(2016, 9, 27), dt.date(2016, 12, 8),
-                      dt.date(2017, 1, 27), dt.date(2017, 3, 10),
-                      dt.date(2017, 5, 27), dt.date(2017, 7, 7),
-                      dt.date(2017, 8, 18), dt.date(2017,9, 29)]
+HFIR_SHUTDOWN_DAYS = [dt.datetime(2016, 9, 30, 10, 4),
+                      dt.datetime(2016, 12, 8, 20, 15),
+                      dt.datetime(2017, 1, 29, 0, 0),
+                      dt.datetime(2017, 3, 11, 23, 59),
+                      dt.datetime(2017, 5, 27, 22, 35),
+                      dt.datetime(2017, 7, 8, 14, 29),
+                      dt.datetime(2017, 8, 18, 0, 0),  # in the future
+                      dt.datetime(2017, 9, 29, 0, 0)]  # in the future
 
 HFIR_CYCLE_NUM = [468, 469, 470, 471, 472, 473, 474]
 
@@ -44,8 +52,8 @@ def find_range(batch_start, batch_stop):
     stop_ind : int
         The index of the last date that batch_stop is after
     """
-    start_test_list = [(batch_start.date() < x) for x in HFIR_MIXED_DAYS]
-    stop_test_list = [(batch_stop.date() < x) for x in HFIR_MIXED_DAYS]
+    start_test_list = [(batch_start < x) for x in HFIR_MIXED_DAYS]
+    stop_test_list = [(batch_stop < x) for x in HFIR_MIXED_DAYS]
     start_ind = -2
     for i, val in enumerate(start_test_list):
         if val:
@@ -104,33 +112,26 @@ def get_reactor_status(batch_start, batch_stop):
         return None
     bstart = batch_start.date()
     bstop = batch_stop.date()
-    if(bstart == HFIR_MIXED_DAYS[start_ind] and
-       bstop == HFIR_MIXED_DAYS[stop_ind]):
+    if (bstart == HFIR_MIXED_DAYS[start_ind].date() and
+            bstop == HFIR_MIXED_DAYS[stop_ind].date()):
         print "Error: batch start and stop span a reactor turn on and off"
         return None
     # handle the cases that are not errors
-    if (bstart == HFIR_MIXED_DAYS[start_ind] and start_ind%2 == 1):
-        return 3
-    if stop_ind == start_ind:
-        if (bstart == HFIR_MIXED_DAYS[start_ind]):
-            if (start_ind%2) == 1:
-                return 3
-            else:
-                return 1
-        elif (bstop == HFIR_MIXED_DAYS[stop_ind+1]):
-            if (start_ind%2) == 1:
-                return 1
-            else:
-                return 3
+    ret_val = 3
+    if bstart == HFIR_MIXED_DAYS[start_ind].date() and start_ind%2 == 1:
+        ret_val = 3
+    elif stop_ind == start_ind:
+        if bstart == HFIR_MIXED_DAYS[start_ind].date() and (start_ind%2) == 0:
+            ret_val = 1
+        elif bstop == HFIR_MIXED_DAYS[stop_ind+1].date() and (start_ind%2) == 1:
+            ret_val = 1
         elif (stop_ind%2) == 1:
-            return 0
+            ret_val = 0
         else:
-            return 2
-    else:
-        if (start_ind%2) == 1:
-            return 1
-        else:
-            return 3
+            ret_val = 2
+    elif (start_ind%2) == 1:
+        ret_val = 1
+    return ret_val
 
 
 def get_reactor_status_name(batch_start, batch_stop):
@@ -172,23 +173,3 @@ def get_reactor_cycles(batch_start, batch_stop):
     """
     (start_ind, stop_ind) = find_range(batch_start, batch_stop)
     return (HFIR_CYCLE_NUM[start_ind/2], HFIR_CYCLE_NUM[stop_ind/2])
-
-
-if __name__ == "__main__":
-    temp1 = dt.datetime(2016, 9, 6, 9, 33)
-    temp2 = dt.datetime(2016, 9, 10, 7, 13)
-    print temp1
-    print temp2
-    print find_range(temp1, temp2)
-    print get_reactor_status(temp1, temp2)
-    print get_reactor_cycles(temp1, temp2)
-    print get_reactor_status_name(temp1, temp2)
-    temp3 = dt.datetime(2017, 6, 1, 10, 15)
-    temp4 = dt.datetime(2017, 6, 15, 8, 19)
-    print temp3
-    print temp4
-    print find_range(temp3, temp4)
-    print get_reactor_status(temp3, temp4)
-    print get_reactor_cycles(temp3, temp4)
-    print get_reactor_status_name(temp3, temp4)
-
