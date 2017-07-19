@@ -7,6 +7,7 @@ import os
 from odbblib import readrawdata as rrd
 from odbblib import databaseops as dbops
 from odbblib import input_sanitizer as ins
+from odbblib import analysis as anly
 
 
 # BATCH_DB_LOCATION = "/data1/prospect/ProcessedData/OrchidAnalysis/batchDatabase.db"
@@ -15,7 +16,7 @@ BATCH_DB_LOCATION = "/home/jmatta1/test_data/batchDatabase.db"
 
 def main():
     """This function is the main entry point for the program"""
-    if not len(sys.argv) in [2,3]:
+    if not len(sys.argv) in [2, 3]:
         print USAGE_INFO.format(sys.argv[0])
         sys.exit()
     batch_db_path = BATCH_DB_LOCATION
@@ -26,9 +27,38 @@ def main():
     print "Setting batch location to:", batch_data_location
     # read the raw batch data
     batch_data = rrd.read_batch_data(batch_data_location)
+    handle_batch_data(batch_data, batch_db_path)
+    # read the detector metadata
+    det_data = rrd.read_det_data(batch_data["DetDataLocation"])
+    # read the run data
+    run_data = rrd.read_run_data(batch_data["RunDataLocation"], det_data)
+    # break the run data into more useful format
+    run_info = [x[0] for x in run_data]
+    det_run_data = [[x[ind] for x in run_data] for ind in
+                    range(1, len(run_data[0]))]
+    # generate the path for the run database
+    base, _ = os.path.split(batch_data_location)
+    run_db_path = os.path.join(base, "runDatabase.db")
+    # attempt to put the data into the run database
+    dbops.make_batch_database(run_db_path, det_data, run_info, det_run_data)
+    # figure out if we need to produce multiple sums
+    anly.find_sum_ranges(run_info, det_run_data)
+    
+
+
+def handle_batch_data(batch_data, batch_db_path):
+    """Attempts to insert the data for the batch into the global batch database
+
+    Parameters
+    ----------
+    batch_data : dict
+        dictionary of batch information
+    batch_db_path : str
+        path to the global batch database
+    """
     # attempt to insert the batch data into the global batch database
     if not dbops.add_batch_data(batch_data, batch_db_path):
-        print "Batch information already in database, choose an action"
+        print "\nBatch information already in database, choose an action"
         print "    1 - Abort execution"
         print "    2 - Overwrite Batch Database Entry"
         print "    3 - Skip Writing Batch Database"
@@ -44,19 +74,6 @@ def main():
             print "Skipping insertion of batch data into global batch database"
     else:
         print "Added batch information to global batch database"
-    # read the detector metadata
-    det_data = rrd.read_det_data(batch_data["DetDataLocation"])
-    # read the run data
-    run_data = rrd.read_run_data(batch_data["RunDataLocation"], det_data)
-    # break the run data into more useful format
-    run_info = [x[0] for x in run_data]
-    det_run_data = [[x[ind] for x in run_data] for ind in
-                    range(1, len(run_data[0]))]
-    # generate the path for the run database
-    base, _ = os.path.split(batch_data_location)
-    run_db_path = os.path.join(base, "runDatabase.db")
-    # attempt to put the data into the run database
-    dbops.make_batch_database(run_db_path, det_data, run_info, det_run_data)
 
 
 USAGE_INFO = """Usage:
