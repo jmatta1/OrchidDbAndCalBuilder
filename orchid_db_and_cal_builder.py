@@ -7,7 +7,7 @@ import os
 from odacblib import readrawdata as rrd
 from odacblib import databaseops as dbops
 from odacblib import input_sanitizer as ins
-from odacblib import analysis as anly
+from odacblib import fuzzy_logic as fl
 
 
 # BATCH_DB_LOCATION = "/data1/prospect/ProcessedData/OrchidAnalysis/batchDatabase.db"
@@ -42,7 +42,7 @@ def main():
     # attempt to put the data into the run database
     dbops.make_batch_database(run_db_path, det_data, run_info, det_run_data)
     # figure out if we need to produce multiple sums
-    anly.find_sum_ranges(run_info, det_run_data)
+    fl.find_sum_ranges(run_info, det_run_data)
 
 
 def handle_batch_data(batch_data, batch_db_path):
