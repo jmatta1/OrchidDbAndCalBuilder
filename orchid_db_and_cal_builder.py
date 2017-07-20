@@ -44,13 +44,13 @@ def main():
     # attempt to put the data into the run database
     dbops.make_batch_database(batch_data["RunDbLoc"], det_data, run_info, det_run_data)
     # figure out if we need to produce multiple sums
-    summing_lists = fl.find_sum_ranges(run_info, det_run_data)
+    summing_lists = fl.find_sum_ranges(run_info, det_run_data,
+                                       batch_data["RootFileLocation"])
     # call the function to setup the calibration root file. it will determine
     # if re-summing is required or if we can simply use the existing sum
     # spectra that were generated
     ro.prep_calibration_file(summing_lists, batch_data["RootFileLocation"],
-                             batch_data["CalRootLoc"], run_info)
-    
+                             batch_data["CalRootLoc"], det_data, len(run_info))
 
 
 def handle_batch_data(batch_data, batch_db_path):
