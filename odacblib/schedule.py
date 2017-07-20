@@ -134,6 +134,26 @@ def get_reactor_status(batch_start, batch_stop):
     return ret_val
 
 
+def get_previous_shutdown(reference):
+    """This function takes a reference date time and finds the most recent
+    reactor shutdown date that occurred before it
+
+    Parameters
+    ----------
+    reference : datetime.datetime
+        The time to be compared against
+
+    Returns
+    -------
+    last_shutdown : datetime.datetime
+        The most recent reactor shutdown date to occur before reference
+    """
+    for check in reversed(HFIR_SHUTDOWN_DAYS):
+        if check < reference:
+            return check
+    return None
+
+
 def get_reactor_status_name(batch_start, batch_stop):
     """This function takes the batch start and stop and determines the reactor
     status across that period, returning a name for that status
