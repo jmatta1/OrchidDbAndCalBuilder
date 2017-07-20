@@ -1,6 +1,7 @@
 """This file contains the functions that are used to directly access and
 manipulate root files and data"""
 
+import ctypes as ct
 import ROOT as rt
 import odacblib.input_sanitizer as ins
 
@@ -40,9 +41,9 @@ def find_sodium_peak_runs(lo_bnd, hi_bnd, root_input):
     canv.Update()
     last_ans = ins.get_yes_no(query, default_value=True)
     start_run = lo_bnd
-    stop_run = lo_bnd+2
+    stop_run = lo_bnd
     x_range = (canv.GetFrame().GetX1(), canv.GetFrame().GetX2())
-    for i in range(lo_bnd+3, hi_bnd+1, 3):
+    for i in range(lo_bnd+1, hi_bnd+1):
         print "Checking spectrum:", i
         hist = infile.Get(fmt.format(i))
         hist.Draw()
@@ -53,16 +54,12 @@ def find_sodium_peak_runs(lo_bnd, hi_bnd, root_input):
         ans = ins.get_yes_no(query, default_value=True)
         x_range = (canv.GetFrame().GetX1(), canv.GetFrame().GetX2())
         if last_ans == ans:
-            stop_run = i+2
+            stop_run = i
         else:
-            if stop_run > hi_bnd:
-                stop_run = hi_bnd
             out_list.append((start_run, stop_run, 1 if last_ans else 0))
             start_run = i
-            stop_run = i+2
+            stop_run = i
             last_ans = ans
-    if stop_run > hi_bnd:
-        stop_run = hi_bnd
     out_list.append((start_run, stop_run, 1 if last_ans else 0))
     return out_list
 
@@ -125,6 +122,7 @@ def do_split_prep(runs, root_input, root_output, det_data):
     num_cals = rt.TParameter('int')("NumCals", 1)
     num_cals.Write()
     outfile.Flush()
+    print "Done preparing calibration sums"
 
 
 def do_single_prep(run, root_input, root_output, det_data, ind):
@@ -149,10 +147,22 @@ def do_single_prep(run, root_input, root_output, det_data, ind):
     ind : int
         which calibration we are preparing
     """
-    print "Preparing calibration #", ind
-    infile = rt.TFile(root_input)
-    arg = "UPDATE" if ind != 0 else "RECREATE"
-    outfile = rt.TFile(root_output, arg)
+    print "Preparing Calibration #{0:d}".format(ind)
+    lib = ct.cdll.LoadLibrary("./odacblib/libCalibrate.so")
+    lib.performCalSum.argtypes = [ct.c_int, ct.c_int, ct.c_int, ct.c_int,
+                                    ct.c_char_p, ct.c_char_p, ct.c_int]
+    # now copy the sum spectra over to the root file
+    count = 0
+    for dat in det_data:
+        nf = 1
+        if count==0 and ind == 0:
+            nf = 0
+        print "    Preparing Sums For Det #{0:d}".format(dat["DetNum"])
+        lib.performCalSum(run[0], run[1], dat["DetNum"], ind,
+                          ct.c_char_p(root_input), ct.c_char_p(root_output),
+                          nf)
+        count += 1
+    outfile = rt.TFile(root_output, "UPDATE")
     # write a few extra tidbits to the file
     cal_start = rt.TParameter('int')("Cal_{0:d}_Start".format(ind), run[0])
     cal_start.Write()
@@ -166,39 +176,6 @@ def do_single_prep(run, root_input, root_output, det_data, ind):
                                        gamma)
         temp.Write()
     outfile.Flush()
-    # Now prepare to write the spectra to the file
-    in_fmts = ["Det_{0:d}_Run_{{0:d}}_px", "Det_{0:d}_Run_{{0:d}}_px_thresh",
-               "Det_{0:d}_Run_{{0:d}}_py", "Det_{0:d}_Run_{{0:d}}_px_thresh",
-               "Det_{0:d}_Run_{{0:d}}_2D"]
-    out_fmts = ["Det_{0:d}_Sum_px_Cal_{1:d}",
-                "Det_{0:d}_Sum_px_thresh_Cal_{1:d}",
-                "Det_{0:d}_Sum_py_Cal_{1:d}",
-                "Det_{0:d}_Sum_px_thresh_Cal_{1:d}",
-                "Det_{0:d}_Sum_2D_Cal_{1:d}"]
-    # now copy the sum spectra over to the root file
-    for dat in det_data:
-        print "Performing spectrum sums for Detector: ", dat["DetNum"]
-        # first copy the histograms over
-        in_temps = [x.format(dat["DetNum"]) for x in in_fmts]
-        out_names = [x.format(dat["DetNum"], ind) for x in out_fmts]
-        in_names = [x.format(run[0]) for x in in_temps]
-        out_hists = []
-        for iname, oname in zip(in_names, out_names):
-            inhist = infile.Get(iname)
-            outfile.cd()
-            outhist = inhist.Clone()
-            outhist.SetName(oname)
-            out_hists.append(outhist)
-        for i in range(run[0]+1, run[1]+1):
-            in_names = [x.format(i) for x in in_temps]
-            for iname, outhist in zip(in_names, out_hists):
-                inhist = infile.Get(iname)
-                outhist.Add(inhist, 1.0)
-        for outhist in out_hists:
-            outfile.cd()
-            outhist.Write()
-    outfile.Flush()
-    print "Done preparing calibration #", ind
 
 
 def do_normal_prep(runs, root_input, root_output, det_data):
@@ -257,3 +234,22 @@ def do_normal_prep(runs, root_input, root_output, det_data):
             outfile.cd()
             hist.Write()
     outfile.Flush()
+
+
+def get_sum_cal_fits(runs, root_output, det_data):
+    """This function prepares a calibration root file for a single calibration
+    block, i.e. all the data is coming from reactor on, or reactor off, no
+    exceptions
+
+    Parameters
+    ----------
+    runs : list of tuples
+        list of tuples where each tuple has the start run, the stop run,
+        the gamma-ray list for calibration, and the "kind" of calibration
+        0 - reactor on
+        1 - reactor off, early (so 24Na peak is visible)
+        2 - reactor off, late (no 24Na peak)
+    root_input : str
+        The path of the root input file
+    """
+    pass
