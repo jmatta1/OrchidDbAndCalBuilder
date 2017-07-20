@@ -5,6 +5,7 @@ starting calibrations for the automatic calibration system"""
 import datetime as dt
 import itertools as itt
 import odacblib.schedule as sch
+import odacblib.rootops as ro
 
 #TODO: handle the possibility of the MIF being present
 #TODO: Figure out how to handle reactor startup intermediate points for cal
@@ -18,7 +19,7 @@ RX_ON_GAMMAS = [0.5110, 1.173228, 1.322492, 1.460820, 7.63758]
 RX_EARLY_OFF_GAMMAS = [1.173228, 1.322492, 1.460820, 2.614511, 2754.007]
 RX_OFF_GAMMAS = [1.173228, 1.322492, 1.460820, 2.614511]
 
-def find_sum_ranges(run_info, det_run_data):
+def find_sum_ranges(run_info, det_run_data, root_input):
     """This function takes the run information and detector run data and uses
     the shedule functions coupled with rates and user input to figure out what
     groupings need to be made to all summing of the data for calibration
@@ -45,17 +46,17 @@ def find_sum_ranges(run_info, det_run_data):
     rx_stat = sch.get_reactor_status(run_info[0]["StartDateTime"],
                                      run_info[-1]["StopDateTime"])
     if rx_stat == 0:
-        return check_for_early_shutdown(run_info)
+        return check_for_early_shutdown(run_info, root_input)
     elif rx_stat == 1:
         return find_startup(run_info, det_run_data)
     elif rx_stat == 2:
         return [(run_info[0]["RunNum"], run_info[-1]["RunNum"], RX_ON_GAMMAS,
                  0)]
     elif rx_stat == 3:
-        return find_shutdown(run_info, det_run_data)
+        return find_shutdown(run_info, det_run_data, root_input)
 
 
-def find_shutdown(run_info, det_run_data):
+def find_shutdown(run_info, det_run_data, root_input):
     """This function takes data that may or may not span the reactor shutdown
     It then finds out if it does, and determines calibration sums for that data
 
@@ -94,11 +95,12 @@ def find_shutdown(run_info, det_run_data):
     if len(on_range) != 0:
         sum_list.append((on_range[0], on_range[-1], RX_ON_GAMMAS, 0))
     if len(off_range) != 0:
-        sum_list.extend(check_for_early_shutdown(run_info[off_range[0]:]))
+        sum_list.extend(check_for_early_shutdown(run_info[off_range[0]:],
+                                                 root_input))
     return sum_list
 
 
-def check_for_early_shutdown(run_info):
+def check_for_early_shutdown(run_info, root_input):
     """This function takes data that may or may not span the reactor shutdown
     It then finds out if it does, and determines calibration sums for that data
 
@@ -119,15 +121,24 @@ def check_for_early_shutdown(run_info):
     # first get the relevant shutdown day from the schedule
     shutdown_date = sch.get_previous_shutdown(run_info[0]["StartDateTime"])
     ref_date = (shutdown_date + dt.timedelta(days=3))
-    near_list = [val for val in run_info if val["StartDateTime"] < ref_date]
-    far_list = [val for val in run_info if val["StartDateTime"] >= ref_date]
+    near_list = [val["RunNum"] for val in run_info
+                 if val["StartDateTime"] < ref_date]
+    far_list = [val["RunNum"] for val in run_info
+                if val["StartDateTime"] >= ref_date]
     out_list = []
+    # first break the near list into sections where the 24Na is present and
+    # not present
+    gamma_pair = [RX_OFF_GAMMAS, RX_EARLY_OFF_GAMMAS]
+    type_pair = [2, 1]
     if len(near_list) != 0:
-        out_list.append((near_list[0]["RunNum"], near_list[-1]["RunNum"],
-                         RX_EARLY_OFF_GAMMAS, 1))
+        runlst = ro.find_sodium_peak_runs(near_list[0], near_list[-1],
+                                          root_input)
+        for tup in runlst:
+            out_list.append((tup[0], tup[1], gamma_pair[tup[2]],
+                             type_pair[tup[2]]))
     if len(far_list) != 0:
-        out_list.append((far_list[0]["RunNum"], far_list[-1]["RunNum"],
-                         RX_OFF_GAMMAS, 2))
+        out_list.append((far_list[0], far_list[-1]["RunNum"], gamma_pair[0],
+                         2))
     return out_list
 
 
@@ -163,17 +174,17 @@ def find_startup(run_info, det_run_data):
             status.append(2)
         else:
             status.append(1)
-    not_on_range = [run_info[i]["RunNum"] for i in range(len(status))
-                 if status[i] in [0, 1]]
-    on_range = [run_info[i]["RunNum"] for i in range(len(status))
-                if status[i] == 2]
+    not_on_range = [run_info[x]["RunNum"] for x in range(len(status))
+                    if status[x] in [0, 1]]
+    on_range = [run_info[x]["RunNum"] for x in range(len(status))
+                if status[x] == 2]
     # now group the off range since it could be interrupted by a brief burst of
     # intermediate strength reactor on
     temp = itt.groupby(enumerate(not_on_range), lambda (i, x): status[i])
     off_range = []
-    for k, g in temp:
-        if k == 0:
-            arr = [r for r in g]
+    for tup in temp:
+        if tup[0] == 0:
+            arr = [x for x in tup[1]]
             off_range.append(arr)
     sum_list = []
     if len(off_range) != 0:
