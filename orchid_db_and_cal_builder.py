@@ -8,7 +8,7 @@ from odacblib import readrawdata as rrd
 from odacblib import databaseops as dbops
 from odacblib import input_sanitizer as ins
 from odacblib import fuzzy_logic as fl
-
+from odacblib import rootops as ro
 
 # BATCH_DB_LOCATION = "/data1/prospect/ProcessedData/OrchidAnalysis/batchDatabase.db"
 BATCH_DB_LOCATION = "/home/jmatta1/test_data/batchDatabase.db"
@@ -27,6 +27,11 @@ def main():
     print "Setting batch location to:", batch_data_location
     # read the raw batch data
     batch_data = rrd.read_batch_data(batch_data_location)
+    # generate the paths for various things
+    base, _ = os.path.split(batch_data_location)
+    batch_data["RunDbLoc"] = os.path.join(base, "runDatabase.db")
+    batch_data["CalRootLoc"] = os.path.join(base, "cal_hists.root")
+    batch_data["DecompRootLoc"] = os.path.join(base, "decomp_hists.root")
     handle_batch_data(batch_data, batch_db_path)
     # read the detector metadata
     det_data = rrd.read_det_data(batch_data["DetDataLocation"])
@@ -36,13 +41,16 @@ def main():
     run_info = [x[0] for x in run_data]
     det_run_data = [[x[ind] for x in run_data] for ind in
                     range(1, len(run_data[0]))]
-    # generate the path for the run database
-    base, _ = os.path.split(batch_data_location)
-    run_db_path = os.path.join(base, "runDatabase.db")
     # attempt to put the data into the run database
-    dbops.make_batch_database(run_db_path, det_data, run_info, det_run_data)
+    dbops.make_batch_database(batch_data["RunDbLoc"], det_data, run_info, det_run_data)
     # figure out if we need to produce multiple sums
-    fl.find_sum_ranges(run_info, det_run_data)
+    summing_lists = fl.find_sum_ranges(run_info, det_run_data)
+    # call the function to setup the calibration root file. it will determine
+    # if re-summing is required or if we can simply use the existing sum
+    # spectra that were generated
+    ro.prep_calibration_file(summing_lists, batch_data["RootFileLocation"],
+                             batch_data["CalRootLoc"], run_info)
+    
 
 
 def handle_batch_data(batch_data, batch_db_path):
