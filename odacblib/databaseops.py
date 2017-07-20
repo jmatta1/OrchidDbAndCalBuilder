@@ -2,7 +2,7 @@
 import sqlite3 as sql
 import sys
 import datetime as dt
-import odbblib.input_sanitizer as ins
+import odacblib.input_sanitizer as ins
 
 BATCH_TABLE_CMD = """CREATE TABLE batch_table (
     batch_name text PRIMARY KEY,

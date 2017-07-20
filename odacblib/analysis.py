@@ -2,7 +2,7 @@
 summed into overall spectra for figuring out starting calibrations for the
 automatic calibration system"""
 
-import odbblib.schedule as sch
+import odacblib.schedule as sch
 
 #TODO: handle the possibility of the MIF being present
 

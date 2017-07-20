@@ -2,7 +2,7 @@
 
 import os
 import datetime as dt
-import odbblib.schedule as sch
+import odacblib.schedule as sch
 
 PATH_STR1 = "/data1/prospect/ProcessedData/OrchidAnalysis/TimeSeries_2017"
 PATH_STR2 = "/home/itm/test_reader/short_runs"
