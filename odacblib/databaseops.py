@@ -125,7 +125,7 @@ MAKE_DET_RUN_TABLE = """CREATE TABLE {0:s} (
     avg_current_ua real NOT NULL,
     avg_hv_temp real NOT NULL,
     integral_counts int NOT NULL,
-    avg_rage real NOT NULL,
+    avg_rate real NOT NULL,
     en_cal_offset real NOT NULL,
     en_cal_slope real NOT NULL,
     en_cal_curve real NOT NULL,
